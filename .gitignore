@@ -1,0 +1,23 @@
+# Python (vote)
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Node.js (result)
+node_modules/
+
+# .NET (worker)
+bin/
+obj/
+
+# Docker / secrets locaux
+.env
+*.env.local
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store
