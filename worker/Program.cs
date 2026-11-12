@@ -1,5 +1,6 @@
 using System;
 using System.Data.Common;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -12,26 +13,44 @@ namespace Worker
 {
     public class Program
     {
+        private static readonly string HeartbeatFile = Path.Combine(Path.GetTempPath(), "worker_alive");
+
         public static int Main(string[] args)
         {
             try
             {
-                var pgsql = OpenDbConnection("Server=localhost;Username=postgres;Password=postgres;");
-                var redisConn = OpenRedisConnection("localhost");
+                var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? "localhost";
+                var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? "postgres";
+                var dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD") ?? "postgres";
+                var redisHost = Environment.GetEnvironmentVariable("REDIS_HOST") ?? "localhost";
+                var connectionString = $"Server={dbHost};Username={dbUser};Password={dbPassword};";
+
+                var pgsql = OpenDbConnection(connectionString);
+                var redisConn = OpenRedisConnection(redisHost);
                 var redis = redisConn.GetDatabase();
 
                 var keepAliveCommand = pgsql.CreateCommand();
                 keepAliveCommand.CommandText = "SELECT 1";
 
                 var definition = new { vote = "", voter_id = "" };
+                var lastBeat = DateTime.MinValue;
+
                 while (true)
                 {
                     Thread.Sleep(100);
 
+                    // Heartbeat pour le HEALTHCHECK Docker (au plus une fois toutes les 5 s)
+                    if ((DateTime.UtcNow - lastBeat).TotalSeconds > 5)
+                    {
+                        File.WriteAllText(HeartbeatFile, DateTime.UtcNow.ToString("o"));
+                        lastBeat = DateTime.UtcNow;
+                    }
+
                     // Se reconnecter à Redis si la connexion est perdue
-                    if (redisConn == null || !redisConn.IsConnected) {
+                    if (redisConn == null || !redisConn.IsConnected)
+                    {
                         Console.WriteLine("Reconnecting Redis");
-                        redisConn = OpenRedisConnection("localhost");
+                        redisConn = OpenRedisConnection(redisHost);
                         redis = redisConn.GetDatabase();
                     }
                     string json = redis.ListLeftPopAsync("votes").Result;
@@ -44,12 +63,11 @@ namespace Worker
                         if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
                         {
                             Console.WriteLine("Reconnecting DB");
-                            pgsql = OpenDbConnection("Server=localhost;Username=postgres;Password=postgres;");
+                            pgsql = OpenDbConnection(connectionString);
+                            keepAliveCommand = pgsql.CreateCommand();
+                            keepAliveCommand.CommandText = "SELECT 1";
                         }
-                        else
-                        {
-                            UpdateVote(pgsql, vote.voter_id, vote.vote);
-                        }
+                        UpdateVote(pgsql, vote.voter_id, vote.vote);
                     }
                     else
                     {
