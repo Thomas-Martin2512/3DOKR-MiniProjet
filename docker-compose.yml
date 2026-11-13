@@ -5,7 +5,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - back-tier
+      - redis-net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -16,15 +16,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
     volumes:
       - db-data:/var/lib/postgresql/data
     networks:
-      - back-tier
+      - db-net
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -40,8 +40,7 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - front-tier
-      - back-tier
+      - redis-net
     restart: unless-stopped
 
   worker:
@@ -49,15 +48,16 @@ services:
     environment:
       REDIS_HOST: redis
       DB_HOST: db
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     depends_on:
       redis:
         condition: service_healthy
       db:
         condition: service_healthy
     networks:
-      - back-tier
+      - redis-net
+      - db-net
     restart: unless-stopped
 
   result:
@@ -66,19 +66,18 @@ services:
       - "8081:8888"
     environment:
       DB_HOST: db
-      DB_USER: ${POSTGRES_USER}
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_USER: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - front-tier
-      - back-tier
+      - db-net
     restart: unless-stopped
 
 networks:
-  front-tier:
-  back-tier:
+  redis-net:
+  db-net:
 
 volumes:
   db-data:
