@@ -1,0 +1,85 @@
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    networks:
+      - back-tier
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - back-tier
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  vote:
+    build: ./vote
+    ports:
+      - "8080:8080"
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - front-tier
+      - back-tier
+    restart: unless-stopped
+
+  worker:
+    build: ./worker
+    environment:
+      REDIS_HOST: redis
+      DB_HOST: db
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - back-tier
+    restart: unless-stopped
+
+  result:
+    build: ./result
+    ports:
+      - "8081:8888"
+    environment:
+      DB_HOST: db
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - front-tier
+      - back-tier
+    restart: unless-stopped
+
+networks:
+  front-tier:
+  back-tier:
+
+volumes:
+  db-data:
+  redis-data:
