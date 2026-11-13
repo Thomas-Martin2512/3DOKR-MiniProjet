@@ -22,8 +22,12 @@ io.sockets.on("connection", function (socket) {
   })
 })
 
+const dbHost = process.env.DB_HOST || "localhost"
+const dbUser = process.env.DB_USER || "postgres"
+const dbPassword = process.env.DB_PASSWORD || "postgres"
+
 const pool = new pg.Pool({
-  connectionString: "postgres://postgres:postgres@localhost/postgres",
+  connectionString: `postgres://${dbUser}:${dbPassword}@${dbHost}/postgres`,
 })
 
 async.retry(
@@ -81,6 +85,10 @@ app.use(function (req, res, next) {
 })
 
 app.use(express.static(__dirname + "/views"))
+
+app.get("/healthz", function (req, res) {
+  res.status(200).send("ok")
+})
 
 app.get("/", function (req, res) {
   res.sendFile(path.resolve(__dirname + "/views/index.html"))
