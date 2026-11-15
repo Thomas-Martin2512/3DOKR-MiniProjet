@@ -43,15 +43,15 @@ vote ne peut donc pas joindre PostgreSQL, et result ne peut pas joindre Redis. S
 
 Volumes nommés : db-data (données PostgreSQL) et redis-data (Redis avec --appendonly yes). Les votes survivent à un redémarrage.
 
-2. Structure du dépôt et organisation Git
-.
-├── vote/                  # Dockerfile, .dockerignore, app.py, requirements.txt
-├── worker/                # Dockerfile, .dockerignore, Program.cs, Worker.csproj
-├── result/                # Dockerfile, .dockerignore, server.js, package.json
-├── docker-compose.yml     # Déploiement en local (Docker Compose)
-├── docker-stack.yml       # Même application adaptée à Docker Swarm
-├── Vagrantfile            # 3 VM Ubuntu (manager, worker1, worker2)
-├── .env.example           # Modèle des variables d'environnement
+2. Structure du dépôt et organisation Git  
+.  
+├── vote/                  # Dockerfile, .dockerignore, app.py, requirements.txt  
+├── worker/                # Dockerfile, .dockerignore, Program.cs, Worker.csproj  
+├── result/                # Dockerfile, .dockerignore, server.js, package.json  
+├── docker-compose.yml     # Déploiement en local (Docker Compose)  
+├── docker-stack.yml       # Même application adaptée à Docker Swarm  
+├── Vagrantfile            # 3 VM Ubuntu (manager, worker1, worker2)  
+├── .env.example           # Modèle des variables d'environnement  
 └── docs/images/           # Captures d'écran de ce document
 
 Une branche par fonctionnalité, fusionnée dans main une fois testée :
